@@ -34,7 +34,7 @@ std::vector< c_hitscan::target_t > c_hitscan::get_best_targets() {
 		if ( target.m_fov > config->m_aimbot_global.m_aim_fov )
 			continue;
 
-		target.m_priority = 2;
+		target.m_priority = 3;
 		m_targets.emplace_back( target );
 	}
 
@@ -103,17 +103,17 @@ std::vector< vector > c_hitscan::generate_points_for_hitbox( c_base_player* play
 	vector min = box->bbmin;
 	vector max = box->bbmax;
 
-	float scale = 0.5f;
+	float scale = 0.4f;
 	switch ( player->m_player_class( ) ) {
 	case CLASS_HEAVY:
-		scale = config->m_aimbot.m_heavy_mp / 100.f;
+		scale = config->m_aimbot.m_heavy_mp / 90.f;
 		break;
 	case CLASS_SCOUT:
-		scale = config->m_aimbot.m_scout_mp / 100.f;
+		scale = config->m_aimbot.m_scout_mp / 90.f;
 		break;
 	case CLASS_SNIPER:
 		if ( hitbox != HITBOX_HEAD )
-			scale = config->m_aimbot.m_sniper_mp / 100.f;
+			scale = config->m_aimbot.m_sniper_mp / 95.f;
 		break;
 	default:
 		return { player->get_hitbox_position_from_matrix( hitbox, backtrack_matrix, model ) };
@@ -121,9 +121,9 @@ std::vector< vector > c_hitscan::generate_points_for_hitbox( c_base_player* play
 	}
 
 	const std::vector< vector > untransformed_points = {
-		vector( ( min.m_x * -scale ), ( min.m_y * -scale ), ( min.m_z + max.m_z ) * 0.5f ),
-		vector( ( min.m_x * scale ), ( min.m_y * scale ), ( min.m_z + max.m_z ) * 0.5f ),
-		vector( ( min.m_x + max.m_x ) * 0.5f, ( min.m_y + max.m_y ) * 0.5f, ( max.m_z + min.m_z ) * 0.5f )
+		vector( ( min.m_x * -scale ), ( min.m_y * -scale ), ( min.m_z + max.m_z ) * 0.4f ),
+		vector( ( min.m_x * scale ), ( min.m_y * scale ), ( min.m_z + max.m_z ) * 0.4f ),
+		vector( ( min.m_x + max.m_x ) * 0.4f, ( min.m_y + max.m_y ) * 0.4f, ( max.m_z + min.m_z ) * 0.4f )
 	};
 
 	std::vector< vector > points = { };
@@ -146,7 +146,7 @@ shot_info_t c_hitscan::handle_hvh_classes( target_t target ) {
 
 	auto player = target.m_entity->as< c_base_player >( );
 
-	std::vector< int > hitboxes = { 5, 4, 3, 2, 1 };
+	std::vector< int > hitboxes = { 5, 4, 3, 2, 1, 0};
 
 	if ( config->m_aimbot.m_safe_point || player->m_player_class( ) == CLASS_SCOUT )
 		hitboxes = { 1, 2 };
@@ -158,8 +158,8 @@ shot_info_t c_hitscan::handle_hvh_classes( target_t target ) {
 		// simtime has to go up, has to be higher than old simtime and cannot be the same
 		if (player->m_simulation_time() > player->m_old_simulation_time())
 		{
-			matrix_3x4 matrix[128];
-			player->setup_bones(matrix, 128, 0x7FF00, ctx->m_globals->m_current_time);
+			matrix_3x4 matrix[64];
+			player->setup_bones(matrix, 64, 0x7FF00, ctx->m_globals->m_current_time);
 
 			for (auto& hitbox : hitboxes) {
 				std::vector< vector > points = generate_points_for_hitbox(player, hitbox, matrix, player->get_model());
@@ -223,9 +223,9 @@ shot_info_t c_hitscan::handle_headshot_weapons(target_t target) {
 		hitboxes = { HITBOX_NECK };
 
 	// if no fake latency and if it is on and is lower than 120ms then do original model
-	if ( !config->m_exploits.m_fake_latency || ( config->m_exploits.m_fake_latency && config->m_exploits.m_fake_latency_amount < 120 ) ) {
-		matrix_3x4 matrix[ 128 ];
-		player->setup_bones( matrix, 128, 0x7FF00, ctx->m_globals->m_current_time );
+	if ( !config->m_exploits.m_fake_latency || ( config->m_exploits.m_fake_latency && config->m_exploits.m_fake_latency_amount < 125 ) ) {
+		matrix_3x4 matrix[ 64 ];
+		player->setup_bones( matrix, 64, 0x7FF00, ctx->m_globals->m_current_time );
 
 		for ( auto& hitbox : hitboxes ) {
 			if ( hitbox == 0 ) {
@@ -292,9 +292,9 @@ shot_info_t c_hitscan::handle_other( target_t target ) {
 	std::vector< int > hitboxes = { HITBOX_NECK, HITBOX_PELVIS };
 
 	// if no fake latency and if it is on and is lower than 120ms then do original model
-	if ( !config->m_exploits.m_fake_latency || ( config->m_exploits.m_fake_latency && config->m_exploits.m_fake_latency_amount < 120 ) ) {
-		matrix_3x4 matrix[ 128 ];
-		player->setup_bones( matrix, 128, 0x100, ctx->m_globals->m_current_time );
+	if ( !config->m_exploits.m_fake_latency || ( config->m_exploits.m_fake_latency && config->m_exploits.m_fake_latency_amount < 125 ) ) {
+		matrix_3x4 matrix[ 64 ];
+		player->setup_bones( matrix, 64, 0x100, ctx->m_globals->m_current_time );
 
 		for ( auto& hitbox : hitboxes ) {
 			vector pos = player->get_hitbox_position_from_matrix(hitbox, matrix, player->get_model( ) );
@@ -374,7 +374,7 @@ void c_hitscan::handle_tap_fire( shot_info_t info, c_user_cmd* cmd ) {
 
 				if ( info.m_entity->as< c_base_player >( )->m_health( ) > 150 ) {
 					float damage = math::remap_val_clamped( ctx->m_local_weapon->m_charge_damage( ), 0.0f, 150.0f, 0.0f, 450.0f );
-					if ( !( damage >= info.m_entity->as< c_base_player >( )->m_health( ) || damage == 450 ) )
+					if ( !( damage >= info.m_entity->as< c_base_player >( )->m_health( ) || damage == 450.f ) )
 						cmd->m_buttons &= ~IN_ATTACK;
 				}
 			}
@@ -461,7 +461,7 @@ void c_hitscan::run( c_user_cmd* cmd ) {
 		ticks = std::clamp( ticks, 0, 22 );
 
 		// fakelag fix
-		if (info.m_entity->is_player() && ticks > 6 && info.m_entity->as<c_base_player>()->m_velocity().length() > 178.f)
+		if (info.m_entity->is_player() && ticks > 5.7f && info.m_entity->as<c_base_player>()->m_velocity().length() > 178.f)
 			return;
 
 		bool result = false;
@@ -509,7 +509,7 @@ void c_hitscan::run( c_user_cmd* cmd ) {
 
 					if ( !record.m_model ) {
 						matrix_3x4* boner = nullptr;
-						info.m_entity->as< c_base_player >( )->setup_bones( boner, 128, 0x100, ctx->m_globals->m_current_time );
+						info.m_entity->as< c_base_player >( )->setup_bones( boner, 64, 0x32, ctx->m_globals->m_current_time );
 						visuals->draw_hitboxes( info.m_entity->as< c_base_player>( ), info.m_entity->as< c_base_player >( )->get_model( ), boner, color( 255, 255, 255, 10 ), color( 255, 255, 255 ), 0.2f );
 					}
 
